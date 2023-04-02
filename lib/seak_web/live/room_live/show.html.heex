@@ -1,23 +1,37 @@
 <.header>
-  Room <%= @room.id %>
-  <:subtitle>This is a room record from your database.</:subtitle>
+  <%= @room.name %>
   <:actions>
-    <.link patch={~p"/rooms/#{@room}/show/edit"} phx-click={JS.push_focus()}>
+  <.link class="mr-4" navigate={~p"/rooms"}>
+    &larr; Back to rooms
+  </.link>
+    <.link :if={@room.owner == @current_user.id} patch={~p"/rooms/#{@room}/show/edit"} phx-click={JS.push_focus()}>
       <.button>Edit room</.button>
     </.link>
   </:actions>
 </.header>
 
-<.list>
-  <:item title="Name"><%= @room.name %></:item>
-  <:item title="Count users"><%= @room.count_users %></:item>
-  <:item title="Current src"><%= @room.current_src %></:item>
-  <:item title="Password"><%= @room.password %></:item>
-</.list>
+<pre>
+  <%= inspect(@presences, pretty: true) %>
+</pre>
 
-<.back navigate={~p"/rooms"}>Back to rooms</.back>
+<div class="row">
+  <div class="video" phx-click="toggle_playing">
+    <video width="560" height="340" controls src={@current_src} preload>
+      Your browser does not support my HTML5 video player
+    </video>
+  </div>
+  <div>
+    <ul>
+      <li :for={{_id, meta} <- @presences}>
+        <span class="status">
+          <%= meta.username %>
+        </span>
+      </li>
+    </ul>
+  </div>
+</div>
 
-<.modal :if={@live_action == :edit} id="room-modal" show on_cancel={JS.patch(~p"/rooms/#{@room}")}>
+<.modal :if={@live_action == :edit && @room.owner == @current_user.id} id="room-modal" show on_cancel={JS.patch(~p"/rooms/#{@room}")}>
   <.live_component
     module={SeakWeb.RoomLive.FormComponent}
     id={@room.id}
@@ -25,5 +39,6 @@
     action={@live_action}
     room={@room}
     patch={~p"/rooms/#{@room}"}
+    current_user={@current_user.id}
   />
 </.modal>

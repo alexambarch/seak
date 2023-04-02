@@ -23,6 +23,7 @@ defmodule SeakWeb.RoomLive.FormComponent do
         <.input field={@form[:count_users]} type="number" label="Count users" />
         <.input field={@form[:current_src]} type="text" label="Current src" />
         <.input field={@form[:password]} type="text" label="Password" />
+        <.input field={@form[:owner]} type="hidden" value={@current_user} />
         <:actions>
           <.button phx-disable-with="Saving...">Save Room</.button>
         </:actions>

@@ -15,7 +15,7 @@ defmodule Seak.Messaging.Room do
   @doc false
   def changeset(room, attrs) do
     room
-    |> cast(attrs, [:name, :count_users, :current_src, :password])
-    |> validate_required([:name, :count_users, :current_src, :password])
+    |> cast(attrs, [:name, :count_users, :current_src, :password, :owner])
+    |> validate_required([:name, :count_users, :current_src, :password, :owner])
   end
 end
