@@ -14,7 +14,7 @@ defmodule Seak.Application do
       Seak.Repo,
       # Start the PubSub system
       {Phoenix.PubSub, name: Seak.PubSub},
-      Seak.Presence,
+      SeakWeb.Presence,
       # Start Finch
       {Finch, name: Seak.Finch},
       # Start the Endpoint (http/https)

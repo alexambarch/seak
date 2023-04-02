@@ -68,6 +68,9 @@ defmodule SeakWeb.Router do
       on_mount: [{SeakWeb.UserAuth, :ensure_authenticated}] do
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
+      live "/rooms/new", RoomLive.Index, :new
+      live "/rooms/:id/edit", RoomLive.Index, :edit
+      live "/rooms/:id/show/edit", RoomLive.Show, :edit
     end
   end
 
@@ -75,6 +78,9 @@ defmodule SeakWeb.Router do
     pipe_through [:browser]
 
     delete "/users/log_out", UserSessionController, :delete
+
+    live "/rooms", RoomLive.Index, :index
+    live "/rooms/:id", RoomLive.Show, :show
 
     live_session :current_user,
       on_mount: [{SeakWeb.UserAuth, :mount_current_user}] do
