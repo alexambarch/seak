@@ -15,8 +15,8 @@
 </pre>
 
 <div class="row">
-  <div class="video" phx-click="toggle_playing">
-    <video width="560" height="340" controls src={@current_src} preload>
+  <div class="video">
+    <video id="video-content" phx-hook="Video" width="560" height="340" controls src={@current_src} preload>
       Your browser does not support my HTML5 video player
     </video>
   </div>
@@ -24,6 +24,7 @@
     <ul>
       <li :for={{_id, meta} <- @presences}>
         <span class="status">
+          <.icon :if={meta.playing} name="hero-eye-solid" />
           <%= meta.username %>
         </span>
       </li>

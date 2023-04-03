@@ -44,10 +44,31 @@ defmodule SeakWeb.RoomLive.Show do
     Enum.into(presences, %{}, fn {id, %{metas: [meta | _]}} -> {id, meta} end)
   end
 
+  defp sync_room(socket, meta) do
+    %{current_user: current_user, room: room} = socket.assigns
+
+    if current_user != room.owner do
+      socket
+      |> assign(:current_src, meta.current_src)
+      |> assign(:current_time, meta.current_time)
+    else
+      socket
+    end
+  end
+
   defp add_presences(socket, joins) do
     presences = Map.merge(socket.assigns.presences, simple_presence_map(joins))
 
-    assign(socket, :presences, presences)
+    %{owner: owner} = socket.assigns.room
+
+    owner = to_string(owner)
+
+    if owner in Map.keys(joins) do
+      %{metas: [meta | _]} = joins[owner]
+      sync_room(socket, meta) |> assign(:presences, presences)
+    else
+      socket |> assign(:presences, presences)
+    end
   end
 
   defp remove_presences(socket, leaves) do
@@ -58,16 +79,24 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   @impl true
-  def handle_event("toggle_playing", _params, socket) do
-    socket = socket |> update(:playing, fn playing -> !playing end)
+  def handle_event("play_video", current_time, socket) do
+    update_presence(socket, playing: true, current_time: current_time)
 
-    %{current_user: current_user} = socket.assigns
-    %{metas: [meta | _]} = Presence.get_by_key(socket.assigns.topic, current_user.id)
+    {:noreply, socket |> assign(:playing, true) |> assign(current_time: current_time)}
+  end
 
-    new_meta = %{meta | playing: socket.assigns.playing}
-    Presence.update(self(), socket.assigns.topic, current_user.id, new_meta)
+  @impl true
+  def handle_event("pause_video", current_time, socket) do
+    update_presence(socket, playing: false, current_time: current_time)
 
-    {:noreply, socket}
+    {:noreply, socket |> assign(:playing, false) |> assign(current_time: current_time)}
+  end
+
+  @impl true
+  def handle_event("seek_video", current_time, socket) do
+    update_presence(socket, playing: false, current_time: current_time)
+
+    {:noreply, socket |> assign(:playing, false) |> assign(current_time: current_time)}
   end
 
   @impl true
@@ -78,11 +107,34 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   @impl true
+  def handle_info({_form_module, {:saved, room}}, socket) do
+    {:ok, _} =
+      update_presence(socket, current_src: room.current_src, current_time: 0, playing: false)
+
+    socket =
+      socket
+      |> assign(:current_src, room.current_src)
+      |> assign(:current_time, 0)
+      |> assign(:playing, false)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_params(%{"id" => id}, _, socket) do
     {:noreply,
      socket
      |> assign(:page_title, page_title(socket.assigns.live_action))
      |> assign(:room, Messaging.get_room!(id))}
+  end
+
+  defp update_presence(socket, updates) do
+    %{current_user: current_user, topic: topic} = socket.assigns
+    %{metas: [meta | _]} = Presence.get_by_key(topic, current_user.id)
+
+    new_meta = Enum.reduce(updates, meta, fn {key, value}, acc -> Map.put(acc, key, value) end)
+
+    Presence.update(self(), topic, current_user.id, new_meta)
   end
 
   defp page_title(:show), do: "Show Room"
