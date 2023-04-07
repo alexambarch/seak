@@ -24,7 +24,8 @@
     <ul>
       <li :for={{_id, meta} <- @presences}>
         <span class="status">
-          <.icon :if={meta.playing} name="hero-eye-solid" />
+          <.icon :if={meta.video_state == :playing} name="hero-eye-solid" />
+          <.icon :if={meta.video_state == :buffering} name="hero-video-camera-slash-solid" />
           <%= meta.username %>
         </span>
       </li>

@@ -22,18 +22,65 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
+
 let Hooks = {}
 
 Hooks.Video = {
   mounted () {
-    console.log("Component mounted")
-    this.el.addEventListener("play", e => this.pushEvent("play_video", this.el.currentTime))
-    this.el.addEventListener("pause", e => this.pushEvent("pause_video", this.el.currentTime))
-    this.el.addEventListener("seeking", e => {
-      this.el.pause()
-      this.pushEvent("seek_video", this.el.currentTime)
+    /**
+     * Send events to the LiveView when the video state changes.
+     * */
+
+    let phxNotify = event => this.pushEvent(
+      `${event.type}_video`, this.el.currentTime
+    );
+
+    ["play", "seeked", "pause", "canplay", "waiting"].forEach(
+      event => this.el.addEventListener(event, phxNotify)
+    )
+
+    /**
+     * Handle events sent from the LiveView.
+     *
+     * In both play and pause events, we want to ensure that a programmatic play
+     * and pause do not cause a new event to be broadcast, as this would cause
+     * an endless loop of events being sent and then attempting to process them.
+     * */
+    this.handleEvent("startPlaying", time => {
+      this.el.removeEventListener("play", phxNotify)
+      this.el.removeEventListener("seeked", phxNotify)
+
+      this.el.currentTime = time
+      this.el.play()
+
+      setTimeout(() => {
+        this.el.addEventListener("play", phxNotify)
+        this.el.addEventListener("seeked", phxNotify)
+      }, 10)
     })
-    this.el.addEventListener("waiting", e => {this.pushEvent("buffering_video")})
+
+    this.handleEvent("stopPlaying", time => {
+      this.el.removeEventListener("pause", phxNotify)
+      this.el.removeEventListener("seeked", phxNotify)
+
+      this.el.pause()
+      this.el.currentTime = time
+
+      setTimeout(() => {
+        this.el.addEventListener("pause", phxNotify)
+        this.el.addEventListener("seeked", phxNotify)
+      }, 10)
+    })
+
+    this.handleEvent("seek", time => {
+      this.removeEventListener("seeked", phxNotify)
+
+      this.el.currentTime = time
+
+      setTimeout(() => {
+        this.el.addEventListener("seeked", phxNotify)
+      }, 10)
+    })
   }
 }
 
