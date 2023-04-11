@@ -65,7 +65,12 @@ defmodule SeakWeb.RoomLive.Show do
   @impl true
   def handle_event("play_video", current_time, socket) do
     update_presence(socket, video_state: :playing)
-    Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.video_topic, {:playing, current_time})
+
+    Phoenix.PubSub.broadcast(
+      Seak.PubSub,
+      socket.assigns.video_topic,
+      {:playing, current_time, socket.assigns.current_user}
+    )
 
     {:noreply, socket |> assign(:video_state, :playing) |> assign(current_time: current_time)}
   end
@@ -73,14 +78,23 @@ defmodule SeakWeb.RoomLive.Show do
   @impl true
   def handle_event("pause_video", current_time, socket) do
     update_presence(socket, video_state: :paused)
-    Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.video_topic, {:paused, current_time})
+
+    Phoenix.PubSub.broadcast(
+      Seak.PubSub,
+      socket.assigns.video_topic,
+      {:paused, current_time, socket.assigns.current_user}
+    )
 
     {:noreply, socket |> assign(:video_state, :paused) |> assign(current_time: current_time)}
   end
 
   @impl true
   def handle_event("seeked_video", current_time, socket) do
-    Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.video_topic, {:seeked, current_time})
+    Phoenix.PubSub.broadcast(
+      Seak.PubSub,
+      socket.assigns.video_topic,
+      {:seeked, current_time, socket.assigns.current_user}
+    )
 
     {:noreply, socket |> assign(:video_state, :seeked) |> assign(current_time: current_time)}
   end
@@ -88,36 +102,45 @@ defmodule SeakWeb.RoomLive.Show do
   @impl true
   def handle_event("waiting_video", current_time, socket) do
     update_presence(socket, video_state: :paused)
-    Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.video_topic, {:paused, current_time})
+
+    Phoenix.PubSub.broadcast(
+      Seak.PubSub,
+      socket.assigns.video_topic,
+      {:paused, current_time, socket.assigns.current_user}
+    )
 
     {:noreply, socket |> assign(:video_state, :paused) |> assign(current_time: current_time)}
   end
 
   @impl true
-  def handle_event("canplay_video", current_time, socket) do
-    update_presence(socket, video_state: :paused)
-    Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.video_topic, {:paused, current_time})
-
-    {:noreply, socket |> assign(:video_state, :paused) |> assign(current_time: current_time)}
+  def handle_info({:playing, current_time, current_user}, socket) do
+    if current_user != socket.assigns.current_user do
+      socket = socket |> push_event("startPlaying", %{current_time: current_time})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
-  def handle_info({:playing, current_time}, socket) do
-    socket = socket |> push_event("startPlaying", %{current_time: current_time})
-    {:noreply, socket}
+  def handle_info({:paused, current_time, current_user}, socket) do
+    if current_user != socket.assigns.current_user do
+      socket = socket |> push_event("stopPlaying", %{current_time: current_time})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
-  def handle_info({:paused, current_time}, socket) do
-    socket = socket |> push_event("stopPlaying", %{current_time: current_time})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:seeked, current_time}, socket) do
+  def handle_info({:seeked, current_time, _current_user}, socket) do
     socket = socket |> push_event("seek", %{current_time: current_time})
 
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:ready, _current_time}, socket) do
     {:noreply, socket}
   end
 

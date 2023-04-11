@@ -31,11 +31,14 @@ Hooks.Video = {
      * Send events to the LiveView when the video state changes.
      * */
 
-    let phxNotify = event => this.pushEvent(
-      `${event.type}_video`, this.el.currentTime
-    );
+    let phxNotify = event => {
+      console.log(`${event.type}_video: ${this.el.currentTime}`)
+      this.pushEvent(
+        `${event.type}_video`, this.el.currentTime
+      )
+    };
 
-    ["play", "seeked", "pause", "canplay", "waiting"].forEach(
+    ["play", "seeked", "pause", "waiting"].forEach(
       event => this.el.addEventListener(event, phxNotify)
     )
 
@@ -46,40 +49,47 @@ Hooks.Video = {
      * and pause do not cause a new event to be broadcast, as this would cause
      * an endless loop of events being sent and then attempting to process them.
      * */
-    this.handleEvent("startPlaying", time => {
+    this.handleEvent("startPlaying", payload => {
+      let { current_time } = payload
+      console.log(`start at ${current_time}`)
+
       this.el.removeEventListener("play", phxNotify)
       this.el.removeEventListener("seeked", phxNotify)
 
-      this.el.currentTime = time
+      this.el.currentTime = parseFloat(current_time)
       this.el.play()
 
       setTimeout(() => {
         this.el.addEventListener("play", phxNotify)
         this.el.addEventListener("seeked", phxNotify)
-      }, 10)
+      }, 0)
     })
 
-    this.handleEvent("stopPlaying", time => {
+    this.handleEvent("stopPlaying", payload => {
+      let { current_time } = payload
+      console.log(`stop at ${current_time}`)
+
       this.el.removeEventListener("pause", phxNotify)
       this.el.removeEventListener("seeked", phxNotify)
 
       this.el.pause()
-      this.el.currentTime = time
+      this.el.currentTime = parseFloat(current_time)
 
       setTimeout(() => {
         this.el.addEventListener("pause", phxNotify)
         this.el.addEventListener("seeked", phxNotify)
-      }, 10)
+      }, 0)
     })
 
-    this.handleEvent("seek", time => {
-      this.removeEventListener("seeked", phxNotify)
+    this.handleEvent("seek", payload => {
+      let { current_time } = payload
+      this.el.removeEventListener("seeked", phxNotify)
 
-      this.el.currentTime = time
+      this.el.currentTime = current_time
 
       setTimeout(() => {
         this.el.addEventListener("seeked", phxNotify)
-      }, 10)
+      }, 0)
     })
   }
 }
