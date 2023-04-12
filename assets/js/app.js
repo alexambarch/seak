@@ -49,9 +49,9 @@ Hooks.Video = {
     /**
      * Handle events sent from the LiveView.
      *
-     * In both play and pause events, we want to ensure that a programmatic play
-     * and pause do not cause a new event to be broadcast, as this would cause
-     * an endless loop of events being sent and then attempting to process them.
+     * To ensure we do not accidentally fire new events, we need to temporarily
+     * remove the event listeners and then re-add them at the end of the event
+     * queue.
      * */
     this.handleEvent("startPlaying", payload => {
       this.el.removeEventListener("play", phxNotify)
