@@ -10,9 +10,9 @@ defmodule SeakWeb.RoomLive.Show do
     room = Messaging.get_room!(id)
 
     topic = %{
-      video: "users:room:#{room.id}:video",
-      chat: "users:room:#{room.id}:chat",
-      presence: "users:room:#{room.id}:presence"
+      video: "room:#{room.id}:video",
+      chat: "room:#{room.id}:chat",
+      presence: "room:#{room.id}:presence"
     }
 
     if connected?(socket) do
@@ -143,6 +143,14 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   @impl true
+  def handle_event("send_message", %{"message" => message}, socket) do
+    message = %SeakWeb.RoomLive.Message{from: socket.assigns.current_user.email, body: message}
+    Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.topic.chat, {:message, message})
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({:playing, current_time, current_user}, socket) do
     if current_user != socket.assigns.current_user do
       socket = socket |> push_event("startPlaying", %{current_time: current_time})
@@ -204,6 +212,12 @@ defmodule SeakWeb.RoomLive.Show do
       {:change_src, room.current_src}
     )
 
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:message, message}, socket) do
+    socket = socket |> assign(messages: [message | socket.assigns.messages])
     {:noreply, socket}
   end
 

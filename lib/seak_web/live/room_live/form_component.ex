@@ -52,6 +52,7 @@ defmodule SeakWeb.RoomLive.FormComponent do
     {:noreply, assign_form(socket, changeset)}
   end
 
+  @impl true
   def handle_event("save", %{"room" => room_params}, socket) do
     save_room(socket, socket.assigns.action, room_params)
   end

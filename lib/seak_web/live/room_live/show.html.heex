@@ -14,22 +14,32 @@
   <%= inspect(@presences, pretty: true) %>
 </pre>
 
-<div class="row">
+<div class="w-full flex flex-row items-stretch">
   <div class="video">
     <video id="video-content" phx-hook="Video" width="560" height="340" controls src={@current_src} preload>
       Your browser does not support this HTML5 video player
     </video>
+    <div>
+      <ul>
+        <li :for={{_id, meta} <- @presences}>
+          <span class="status">
+            <.icon :if={meta.video_state == :playing} name="hero-eye-solid" />
+            <.icon :if={meta.video_state == :buffering} name="hero-video-camera-slash-solid" />
+            <%= meta.username %>
+          </span>
+        </li>
+      </ul>
+    </div>
   </div>
-  <div>
-    <ul>
-      <li :for={{_id, meta} <- @presences}>
-        <span class="status">
-          <.icon :if={meta.video_state == :playing} name="hero-eye-solid" />
-          <.icon :if={meta.video_state == :buffering} name="hero-video-camera-slash-solid" />
-          <%= meta.username %>
-        </span>
-      </li>
-    </ul>
+  <div class="justify-self-end">
+    <.live_component
+      module={SeakWeb.RoomLive.ChatComponent}
+      id="chat"
+      messages={@messages}
+      current_user={@current_user.email}
+      form={to_form(%{})}
+      topic={@topic.chat}
+    />
   </div>
 </div>
 
