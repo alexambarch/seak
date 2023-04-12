@@ -38,7 +38,11 @@ Hooks.Video = {
       )
     };
 
-    ["play", "seeked", "pause", "waiting"].forEach(
+    let updatePresence = status => {
+      this.pushEvent("update_presence", status)
+    }
+
+    ["play", "pause", "waiting", "seeking"].forEach(
       event => this.el.addEventListener(event, phxNotify)
     )
 
@@ -50,45 +54,35 @@ Hooks.Video = {
      * an endless loop of events being sent and then attempting to process them.
      * */
     this.handleEvent("startPlaying", payload => {
-      let { current_time } = payload
-      console.log(`start at ${current_time}`)
-
       this.el.removeEventListener("play", phxNotify)
-      this.el.removeEventListener("seeked", phxNotify)
 
-      this.el.currentTime = parseFloat(current_time)
       this.el.play()
+      updatePresence("playing")
 
       setTimeout(() => {
         this.el.addEventListener("play", phxNotify)
-        this.el.addEventListener("seeked", phxNotify)
       }, 0)
     })
 
     this.handleEvent("stopPlaying", payload => {
-      let { current_time } = payload
-      console.log(`stop at ${current_time}`)
-
       this.el.removeEventListener("pause", phxNotify)
-      this.el.removeEventListener("seeked", phxNotify)
 
       this.el.pause()
-      this.el.currentTime = parseFloat(current_time)
+      updatePresence("paused")
 
       setTimeout(() => {
         this.el.addEventListener("pause", phxNotify)
-        this.el.addEventListener("seeked", phxNotify)
       }, 0)
     })
 
     this.handleEvent("seek", payload => {
       let { current_time } = payload
-      this.el.removeEventListener("seeked", phxNotify)
 
+      this.el.removeEventListener("seeking", phxNotify)
       this.el.currentTime = current_time
 
       setTimeout(() => {
-        this.el.addEventListener("seeked", phxNotify)
+        this.el.addEventListener("seeking", phxNotify)
       }, 0)
     })
   }

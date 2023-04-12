@@ -8,19 +8,22 @@ defmodule SeakWeb.RoomLive.Show do
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     room = Messaging.get_room!(id)
-    presence_topic = "users:room:#{room.id}:presences"
-    chat_topic = "users:room:#{room.id}:chat"
-    video_topic = "users:room:#{room.id}:video"
+
+    topic = %{
+      video: "users:room:#{room.id}:video",
+      chat: "users:room:#{room.id}:chat",
+      presence: "users:room:#{room.id}:presence"
+    }
 
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Seak.PubSub, presence_topic)
-      Phoenix.PubSub.subscribe(Seak.PubSub, chat_topic)
-      Phoenix.PubSub.subscribe(Seak.PubSub, video_topic)
+      Phoenix.PubSub.subscribe(Seak.PubSub, topic.presence)
+      Phoenix.PubSub.subscribe(Seak.PubSub, topic.chat)
+      Phoenix.PubSub.subscribe(Seak.PubSub, topic.video)
 
       {:ok, _} =
         Presence.track(
           self(),
-          presence_topic,
+          topic.presence,
           socket.assigns.current_user.id,
           %{
             username: socket.assigns.current_user.email,
@@ -29,16 +32,14 @@ defmodule SeakWeb.RoomLive.Show do
         )
     end
 
-    presences = Presence.list(presence_topic) |> simple_presence_map
+    presences = Presence.list(topic.presence) |> simple_presence_map
 
     socket =
       socket
       |> assign(:messages, [])
       |> assign(:presences, presences)
       |> assign(:video_state, :paused)
-      |> assign(:presence_topic, presence_topic)
-      |> assign(:chat_topic, chat_topic)
-      |> assign(:video_topic, video_topic)
+      |> assign(:topic, topic)
       |> assign(:current_time, 0)
       |> assign(:current_src, room.current_src)
 
@@ -64,52 +65,81 @@ defmodule SeakWeb.RoomLive.Show do
 
   @impl true
   def handle_event("play_video", current_time, socket) do
-    update_presence(socket, video_state: :playing)
+    socket =
+      socket
+      |> assign(video_state: :playing)
+      |> assign(current_time: current_time)
+      |> update_presence(video_state: :playing)
 
     Phoenix.PubSub.broadcast(
       Seak.PubSub,
-      socket.assigns.video_topic,
+      socket.assigns.topic.video,
       {:playing, current_time, socket.assigns.current_user}
     )
 
-    {:noreply, socket |> assign(:video_state, :playing) |> assign(current_time: current_time)}
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("pause_video", current_time, socket) do
-    update_presence(socket, video_state: :paused)
+    socket =
+      socket
+      |> assign(video_state: :paused)
+      |> assign(current_time: current_time)
+      |> update_presence(video_state: :paused)
 
     Phoenix.PubSub.broadcast(
       Seak.PubSub,
-      socket.assigns.video_topic,
+      socket.assigns.topic.video,
       {:paused, current_time, socket.assigns.current_user}
     )
 
-    {:noreply, socket |> assign(:video_state, :paused) |> assign(current_time: current_time)}
+    {:noreply, socket}
   end
 
   @impl true
-  def handle_event("seeked_video", current_time, socket) do
+  def handle_event("seeking_video", current_time, socket) do
+    socket =
+      socket
+      |> assign(video_state: :seeking)
+      |> assign(current_time: current_time)
+
     Phoenix.PubSub.broadcast(
       Seak.PubSub,
-      socket.assigns.video_topic,
-      {:seeked, current_time, socket.assigns.current_user}
+      socket.assigns.topic.video,
+      {:seeking, current_time, socket.assigns.current_user}
     )
 
-    {:noreply, socket |> assign(:video_state, :seeked) |> assign(current_time: current_time)}
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("waiting_video", current_time, socket) do
-    update_presence(socket, video_state: :paused)
+    socket =
+      socket
+      |> assign(video_state: :waiting)
+      |> assign(current_time: current_time)
+      |> update_presence(video_state: :waiting)
 
     Phoenix.PubSub.broadcast(
       Seak.PubSub,
-      socket.assigns.video_topic,
+      socket.assigns.topic.video,
       {:paused, current_time, socket.assigns.current_user}
     )
 
-    {:noreply, socket |> assign(:video_state, :paused) |> assign(current_time: current_time)}
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("update_presence", status, socket) do
+    new_status = String.to_atom(status)
+
+    socket =
+      socket
+      |> assign(:video_state, new_status)
+      |> update_presence(video_state: new_status)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -133,15 +163,17 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   @impl true
-  def handle_info({:seeked, current_time, _current_user}, socket) do
-    socket = socket |> push_event("seek", %{current_time: current_time})
+  def handle_info({:seeking, current_time, current_user}, socket) do
+    if current_user != socket.assigns.current_user do
+      socket =
+        socket
+        |> push_event("seek", %{current_time: current_time})
+        |> put_flash(:warning, "#{current_user.email} has seeked.")
 
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:ready, _current_time}, socket) do
-    {:noreply, socket}
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -152,14 +184,25 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   @impl true
-  def handle_info({_form_module, {:saved, room}}, socket) do
-    {:ok, _} = update_presence(socket, video_state: false)
+  def handle_info({:change_src, src}, socket) do
+    socket = socket |> assign(current_src: src)
 
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({_form_module, {:saved, room}}, socket) do
     socket =
       socket
-      |> assign(:current_src, room.current_src)
-      |> assign(:current_time, 0)
-      |> assign(:video_state, false)
+      |> assign(current_src: room.current_src)
+      |> assign(video_state: :paused)
+      |> update_presence(video_state: :paused)
+
+    Phoenix.PubSub.broadcast(
+      Seak.PubSub,
+      socket.assigns.topic.room,
+      {:change_src, room.current_src}
+    )
 
     {:noreply, socket}
   end
@@ -173,12 +216,14 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   defp update_presence(socket, updates) do
-    %{current_user: current_user, presence_topic: topic} = socket.assigns
+    %{current_user: current_user, topic: %{presence: topic}} = socket.assigns
     %{metas: [meta | _]} = Presence.get_by_key(topic, current_user.id)
 
     new_meta = Enum.reduce(updates, meta, fn {key, value}, acc -> Map.put(acc, key, value) end)
 
     Presence.update(self(), topic, current_user.id, new_meta)
+
+    socket
   end
 
   defp page_title(:show), do: "Show Room"
