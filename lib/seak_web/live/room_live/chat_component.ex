@@ -4,12 +4,12 @@ defmodule SeakWeb.RoomLive.ChatComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="h-full w-full flex flex-col items-stretch">
-      <div class="space-y-1">
-        <span :for={message <- @messages}>
+    <div class="h-[36rem] w-96 flex flex-col justify-between">
+      <div class="h-full rounded-xl bg-zinc-200 overflow-auto">
+        <div :for={message <- @messages}>
           <strong><%= message.from %>:&nbsp;</strong>
           <%= message.body %>
-        </span>
+        </div>
       </div>
       <.simple_form for={@form} phx-submit="send_message">
         <.input field={@form[:message]} placeholder="Send a message..." />

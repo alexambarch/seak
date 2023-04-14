@@ -27,7 +27,7 @@ defmodule SeakWeb.RoomLive.Show do
           socket.assigns.current_user.id,
           %{
             username: socket.assigns.current_user.email,
-            video_state: :paused
+            video_state: :waiting
           }
         )
     end
@@ -114,6 +114,16 @@ defmodule SeakWeb.RoomLive.Show do
   end
 
   @impl true
+  def handle_event("canplay_video", _current_time, socket) do
+    socket =
+      socket
+      |> assign(video_state: :paused)
+      |> update_presence(video_state: :paused)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("waiting_video", current_time, socket) do
     socket =
       socket
@@ -136,7 +146,7 @@ defmodule SeakWeb.RoomLive.Show do
 
     socket =
       socket
-      |> assign(:video_state, new_status)
+      |> assign(video_state: new_status)
       |> update_presence(video_state: new_status)
 
     {:noreply, socket}
@@ -144,7 +154,14 @@ defmodule SeakWeb.RoomLive.Show do
 
   @impl true
   def handle_event("send_message", %{"message" => message}, socket) do
-    message = %SeakWeb.RoomLive.Message{from: socket.assigns.current_user.email, body: message}
+    email = socket.assigns.current_user.email
+
+    index =
+      email
+      |> String.graphemes()
+      |> Enum.find_index(fn c -> c == "@" end)
+
+    message = %SeakWeb.RoomLive.Message{from: String.slice(email, 0..(index - 1)), body: message}
     Phoenix.PubSub.broadcast(Seak.PubSub, socket.assigns.topic.chat, {:message, message})
 
     {:noreply, socket}
@@ -208,7 +225,7 @@ defmodule SeakWeb.RoomLive.Show do
 
     Phoenix.PubSub.broadcast(
       Seak.PubSub,
-      socket.assigns.topic.room,
+      socket.assigns.topic.video,
       {:change_src, room.current_src}
     )
 

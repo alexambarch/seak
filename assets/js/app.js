@@ -28,13 +28,13 @@ let Hooks = {}
 Hooks.Video = {
   mounted () {
     // Update a user's presence without telling anyone else to change their video.
-    let updatePresence = status => this.pushEvent("update_presence", status)
+    let updatePresence = status => { this.pushEvent("update_presence", status) }
 
     // Send events to LiveView when the user interacts with the video.
-    let phxNotify = event => this.pushEvent(`${event.type}_video`, this.el.currentTime)
+    let phxNotify = event => { this.pushEvent(`${event.type}_video`, this.el.currentTime) }
 
-    ["play", "pause", "waiting", "seeking"].forEach(
-      event => this.el.addEventListener(event, phxNotify)
+    ["play", "pause", "waiting", "seeking", "canplay"].forEach(
+      event => { this.el.addEventListener(event, phxNotify) }
     )
 
     /**
