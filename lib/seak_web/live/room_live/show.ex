@@ -234,7 +234,7 @@ defmodule SeakWeb.RoomLive.Show do
 
   @impl true
   def handle_info({:message, message}, socket) do
-    socket = socket |> assign(messages: [message | socket.assigns.messages])
+    socket = socket |> assign(messages: socket.assigns.messages ++ [message])
     {:noreply, socket}
   end
 

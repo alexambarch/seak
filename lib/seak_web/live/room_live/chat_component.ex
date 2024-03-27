@@ -6,7 +6,7 @@ defmodule SeakWeb.RoomLive.ChatComponent do
     ~H"""
     <div class="h-[36rem] w-96 flex flex-col justify-between">
       <div class="h-full rounded-xl bg-zinc-200 overflow-auto">
-        <div :for={message <- @messages}>
+        <div :for={message <- @messages} class="pl-4 pt-2">
           <strong><%= message.from %>:&nbsp;</strong>
           <%= message.body %>
         </div>
